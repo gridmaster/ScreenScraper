@@ -12,31 +12,8 @@ namespace ScreenScraper
     {
         static void Main(string[] args)
         {
-            string text = string.Empty;
-           // string path = @"D:\Projects\screenscrape\opps.txt";
             string baseUri = "http://finance.yahoo.com";
-
-            // This text is added only once to the file. 
-            //if (!File.Exists(path))
-            //{
-            //    // Create a file to write to. 
-            //    string createText = "Hello and Welcome" + Environment.NewLine;
-            //    File.WriteAllText(path, createText);
-            //}
-
-            // This text is always added, making the file longer over time 
-            // if it is not deleted. 
-            //string appendText = "This is extra text" + Environment.NewLine;
-            //File.AppendAllText(path, appendText);
-
-            // Open the file to read from. 
-            //string readText = File.ReadAllText(path);
-
-            //string newtext = readText.Substring(readText.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
-            //string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
-
-            //string[] opps = money.Split('|');
-
+            string url = "http://finance.yahoo.com/q/op?s={0}+Options";
             string sym = "IBM";
 
             System.Net.WebClient wc = new System.Net.WebClient();
@@ -48,8 +25,6 @@ namespace ScreenScraper
             string[] opps = money.Split('|');
 
             Dictionary<string, string> mydic = new Dictionary<string, string>();
-
-            string url = "http://finance.yahoo.com/q/op?s={0}+Options";
 
             url = string.Format(url, sym);
 
@@ -74,10 +49,10 @@ namespace ScreenScraper
 
             foreach (var item in mydic)
             {
-                using (StreamWriter sw = new StreamWriter(path + sym + item.Key.ToString(CultureInfo.InvariantCulture) + ".htm"))
+                string fileName = sym + " 20" + item.Key.Substring(item.Key.IndexOf(' ') + 1) + GetMonth(item.Key.Substring(0, 3));
+                using (StreamWriter sw = new StreamWriter(path + fileName + ".htm"))
                 {
                     webData = wc.DownloadString(item.Value);
-
                     sw.Write(webData);
                 }
             }
@@ -89,6 +64,39 @@ namespace ScreenScraper
             webData = wc.DownloadString(fetch);
 
             Console.ReadKey();
+        }
+
+        public static string GetMonth(string month)
+        {
+            switch (month.ToUpper())
+            {
+                case "JAN":
+                    return "01";
+                case "FEB":
+                    return "02";
+                case "MAR":
+                    return "03";
+                case "APR":
+                    return "04";
+                case "MAY":
+                    return "05";
+                case "JUN":
+                    return "06";
+                case "JUL":
+                    return "07";
+                case "AUG":
+                    return "08";
+                case "SEP":
+                    return "09";
+                case "OCT":
+                    return "10";
+                case "NOV":
+                    return "11";
+                case "DEC":
+                    return "12";
+                default:
+                    return "00";
+            }
         }
     }
 }
