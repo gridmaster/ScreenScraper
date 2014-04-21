@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -15,53 +16,111 @@ namespace ScreenScraper
             string baseUri = "http://finance.yahoo.com";
             string url = "http://finance.yahoo.com/q/op?s={0}+Options";
             string sym = "IBM";
+            string webData = string.Empty;
+            int totalCount = 0;
 
-            System.Net.WebClient wc = new System.Net.WebClient();
-            string webData = wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
+            DataSet ds = DeSerializationToDataSet();
+            DataTable companyTable = ds.Tables["company"];
 
-            string newtext = webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
-            string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
-
-            string[] opps = money.Split('|');
-
-            Dictionary<string, string> mydic = new Dictionary<string, string>();
-
-            url = string.Format(url, sym);
-
-            string key = opps[0];
-            key = key.Substring(key.IndexOf('>') + 1);
-            key = key.Substring(0, key.IndexOf('<'));
-
-            mydic.Add(key, url);
-            
-            for (int i = 1; i < opps.Count()-1; i++)
+            foreach (DataRow row in companyTable.Rows)
             {
-                key = opps[i];
-                key = key.Substring(key.IndexOf('>') +1);
-                key = key.Substring(0, key.IndexOf('<'));
-                url = opps[i];
-                url = url.Substring(opps[1].IndexOf('/')).Replace("amp;", "");
-                url = baseUri + url.Substring(0, url.IndexOf('>') - 1);
-                mydic.Add(key, url);
-            }
+                int iNdx = 0;
+                sym = row["symbol"].ToString();
 
-            string path = @"D:\Projects\Data\";
+                totalCount++;
 
-            foreach (var item in mydic)
-            {
-                string fileName = sym + " 20" + item.Key.Substring(item.Key.IndexOf(' ') + 1) + GetMonth(item.Key.Substring(0, 3));
-                using (StreamWriter sw = new StreamWriter(path + fileName + ".htm"))
+                System.Net.WebClient wc = new System.Net.WebClient();
+                do
                 {
-                    webData = wc.DownloadString(item.Value);
-                    sw.Write(webData);
+                    try
+                    {
+                        webData = wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
+                    }
+                    catch (Exception ex)
+                    {
+                        iNdx++;
+                        if (iNdx > 99)
+                            Console.WriteLine("Symbol {0} hit iNdx {1}", sym, iNdx);
+                    }
+                } while (webData.IndexOf("The remote server returned an error: (999)") > -1 && iNdx < 100);
+
+                if (webData.IndexOf("There is no Options data available") > -1 ||
+                        webData.IndexOf("There are no results") > -1 ||
+                            webData.IndexOf("The remote server returned an error: (999)") > -1)
+                {
+                    Console.WriteLine("No opetions data for Symbol {0} hit iNdx {1}", sym, iNdx);
+                    continue;
+                }
+
+                Console.WriteLine("Count {0}: Symbol {1} hit iNdx {2} and was saved to file.", totalCount, sym, iNdx);
+
+                string newtext = webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
+                string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
+
+                string[] opps = money.Split('|');
+
+                Dictionary<string, string> mydic = new Dictionary<string, string>();
+
+                url = string.Format(url, sym);
+
+                string key = opps[0];
+                key = key.Substring(key.IndexOf('>') + 1);
+                key = key.Substring(0, key.IndexOf('<'));
+
+                mydic.Add(key, url);
+
+                for (int i = 1; i < opps.Count() - 1; i++)
+                {
+                    key = opps[i];
+                    key = key.Substring(key.IndexOf('>') + 1);
+                    key = key.Substring(0, key.IndexOf('<'));
+                    url = opps[i];
+                    url = url.Substring(opps[1].IndexOf('/')).Replace("amp;", "");
+                    url = baseUri + url.Substring(0, url.IndexOf('>') - 1);
+                    mydic.Add(key, url);
+                }
+
+                string path = @"D:\Projects\Data\";
+
+                foreach (var item in mydic)
+                {
+                    string fileName = sym + " 20" + item.Key.Substring(item.Key.IndexOf(' ') + 1) + GetMonth(item.Key.Substring(0, 3));
+                    using (StreamWriter sw = new StreamWriter(path + fileName + ".htm"))
+                    {
+                        iNdx = 0;
+
+                        do
+                        {
+                            try
+                            {
+                                webData = wc.DownloadString(item.Value);
+                            }
+                            catch (Exception ex)
+                            {
+                                iNdx++;
+                                if (iNdx > 99)
+                                    Console.WriteLine("Symbol {0} hit iNdx {1}", sym, iNdx);
+                            }
+                        } while (webData.IndexOf("The remote server returned an error: (999)") > -1 && iNdx < 100);
+
+                        if (webData.IndexOf("There is no Options data available") > -1 ||
+                                webData.IndexOf("There are no results") > -1 ||
+                                    webData.IndexOf("The remote server returned an error: (999)") > -1)
+                        {
+                            Console.WriteLine("No opetions data for Symbol {0} hit iNdx {1}", sym, iNdx);
+                            continue;
+                        } 
+                        sw.Write(webData);
+                    }
                 }
             }
+        
 
 
             Console.WriteLine("Done");
-            string fetch = opps[1].Substring(opps[1].IndexOf('/')).Replace("amp;", "");
-            fetch = baseUri + fetch.Substring(0, fetch.IndexOf('>') - 1);
-            webData = wc.DownloadString(fetch);
+            //string fetch = opps[1].Substring(opps[1].IndexOf('/')).Replace("amp;", "");
+            //fetch = baseUri + fetch.Substring(0, fetch.IndexOf('>') - 1);
+            // webData = wc.DownloadString(fetch);
 
             Console.ReadKey();
         }
@@ -97,6 +156,23 @@ namespace ScreenScraper
                 default:
                     return "00";
             }
+        }
+
+
+        private static DataSet DeSerializationToDataSet()
+        {
+            DataSet deSerializeDS = new DataSet();
+            try
+            {
+                deSerializeDS.ReadXmlSchema(@"D:\Projects\ScreenScraper\ScreenScraper\symbolslist.xml");
+                deSerializeDS.ReadXml(@"D:\Projects\ScreenScraper\ScreenScraper\symbolslist.xml", XmlReadMode.IgnoreSchema);
+            }
+            catch (Exception ex)
+            {
+                // Handle Exceptions Here…..
+            }
+            return deSerializeDS;
+
         }
     }
 }
