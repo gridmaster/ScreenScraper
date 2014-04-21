@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,7 +13,7 @@ namespace ScreenScraper
         static void Main(string[] args)
         {
             string text = string.Empty;
-            string path = @"D:\Projects\screenscrape\opps.txt";
+           // string path = @"D:\Projects\screenscrape\opps.txt";
             string baseUri = "http://finance.yahoo.com";
 
             // This text is added only once to the file. 
@@ -29,7 +30,7 @@ namespace ScreenScraper
             //File.AppendAllText(path, appendText);
 
             // Open the file to read from. 
-            string readText = File.ReadAllText(path);
+            //string readText = File.ReadAllText(path);
 
             //string newtext = readText.Substring(readText.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
             //string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
@@ -41,7 +42,7 @@ namespace ScreenScraper
             System.Net.WebClient wc = new System.Net.WebClient();
             string webData = wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
 
-            string newtext = readText.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
+            string newtext = webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
             string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
 
             string[] opps = money.Split('|');
@@ -58,7 +59,6 @@ namespace ScreenScraper
 
             mydic.Add(key, url);
             
-            //<a href="/q/op?s=NLY&amp;m=2014-05">May 14</a>
             for (int i = 1; i < opps.Count()-1; i++)
             {
                 key = opps[i];
@@ -70,14 +70,20 @@ namespace ScreenScraper
                 mydic.Add(key, url);
             }
 
-                //using (StreamWriter sw = new StreamWriter())
-                //{
+            string path = @"D:\Projects\Data\";
 
-                //}
+            foreach (var item in mydic)
+            {
+                using (StreamWriter sw = new StreamWriter(path + sym + item.Key.ToString(CultureInfo.InvariantCulture) + ".htm"))
+                {
+                    webData = wc.DownloadString(item.Value);
 
-                // make dictionary of key values and then save files.
+                    sw.Write(webData);
+                }
+            }
 
-            Console.WriteLine(readText);
+
+            Console.WriteLine("Done");
             string fetch = opps[1].Substring(opps[1].IndexOf('/')).Replace("amp;", "");
             fetch = baseUri + fetch.Substring(0, fetch.IndexOf('>') - 1);
             webData = wc.DownloadString(fetch);
