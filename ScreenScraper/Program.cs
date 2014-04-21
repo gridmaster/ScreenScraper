@@ -31,22 +31,51 @@ namespace ScreenScraper
             // Open the file to read from. 
             string readText = File.ReadAllText(path);
 
-            string newtext = readText.Substring(readText.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
+            //string newtext = readText.Substring(readText.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
+            //string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
+
+            //string[] opps = money.Split('|');
+
+            string sym = "IBM";
+
+            System.Net.WebClient wc = new System.Net.WebClient();
+            string webData = wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
+
+            string newtext = readText.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
             string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
 
             string[] opps = money.Split('|');
 
-            System.Net.WebClient wc = new System.Net.WebClient();
-            string webData = wc.DownloadString("http://finance.yahoo.com/q/op?s=NLY+Options");
+            Dictionary<string, string> mydic = new Dictionary<string, string>();
 
+            string url = "http://finance.yahoo.com/q/op?s={0}+Options";
+
+            url = string.Format(url, sym);
+
+            string key = opps[0];
+            key = key.Substring(key.IndexOf('>') + 1);
+            key = key.Substring(0, key.IndexOf('<'));
+
+            mydic.Add(key, url);
+            
             //<a href="/q/op?s=NLY&amp;m=2014-05">May 14</a>
+            for (int i = 1; i < opps.Count()-1; i++)
+            {
+                key = opps[i];
+                key = key.Substring(key.IndexOf('>') +1);
+                key = key.Substring(0, key.IndexOf('<'));
+                url = opps[i];
+                url = url.Substring(opps[1].IndexOf('/')).Replace("amp;", "");
+                url = baseUri + url.Substring(0, url.IndexOf('>') - 1);
+                mydic.Add(key, url);
+            }
 
-            //using (StreamWriter sw = new StreamWriter())
-            //{
+                //using (StreamWriter sw = new StreamWriter())
+                //{
 
-            //}
+                //}
 
-            // make dictionary of key values and then save files.
+                // make dictionary of key values and then save files.
 
             Console.WriteLine(readText);
             string fetch = opps[1].Substring(opps[1].IndexOf('/')).Replace("amp;", "");
