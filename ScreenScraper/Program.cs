@@ -14,7 +14,7 @@ namespace ScreenScraper
         static void Main(string[] args)
         {
             string baseUri = "http://finance.yahoo.com";
-            string url = "http://finance.yahoo.com/q/op?s={0}+Options";
+            string baseUrl = "http://finance.yahoo.com/q/op?s={0}+Options";
             string sym = "IBM";
             string webData = string.Empty;
             int totalCount = 0;
@@ -34,6 +34,7 @@ namespace ScreenScraper
                 {
                     try
                     {
+                        webData = string.Empty;
                         webData = wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
                     }
                     catch (Exception ex)
@@ -42,26 +43,34 @@ namespace ScreenScraper
                         if (iNdx > 99)
                             Console.WriteLine("Symbol {0} hit iNdx {1}", sym, iNdx);
                     }
-                } while (webData.IndexOf("The remote server returned an error: (999)") > -1 && iNdx < 100);
+                } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
+                                        string.IsNullOrEmpty(webData)) && iNdx < 100);
 
                 if (webData.IndexOf("There is no Options data available") > -1 ||
                         webData.IndexOf("There are no results") > -1 ||
+                        webData.IndexOf("Get Quotes Results for ") > -1 ||
                             webData.IndexOf("The remote server returned an error: (999)") > -1)
                 {
                     Console.WriteLine("No opetions data for Symbol {0} hit iNdx {1}", sym, iNdx);
                     continue;
                 }
 
+                if(string.IsNullOrEmpty(webData))
+                {
+                    Console.WriteLine("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx);
+                    continue;
+                }
+
                 Console.WriteLine("Count {0}: Symbol {1} hit iNdx {2} and was saved to file.", totalCount, sym, iNdx);
 
                 string newtext = webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
-                string money = newtext.Substring(0, newtext.IndexOf("</a><table", System.StringComparison.Ordinal));
+                string money = newtext.Substring(0, newtext.IndexOf("<table", System.StringComparison.Ordinal));
 
                 string[] opps = money.Split('|');
 
                 Dictionary<string, string> mydic = new Dictionary<string, string>();
 
-                url = string.Format(url, sym);
+                string url = string.Format(baseUrl, sym);
 
                 string key = opps[0];
                 key = key.Substring(key.IndexOf('>') + 1);
@@ -69,19 +78,24 @@ namespace ScreenScraper
 
                 mydic.Add(key, url);
 
-                for (int i = 1; i < opps.Count() - 1; i++)
+                for (int i = 1; i < opps.Count(); i++)
                 {
                     key = opps[i];
                     key = key.Substring(key.IndexOf('>') + 1);
-                    key = key.Substring(0, key.IndexOf('<'));
+                    if (key.IndexOf('<') > -1)
+                        key = key.Substring(0, key.IndexOf('<'));
+                    else
+                        key = key;
                     url = opps[i];
                     url = url.Substring(opps[1].IndexOf('/')).Replace("amp;", "");
                     url = baseUri + url.Substring(0, url.IndexOf('>') - 1);
                     mydic.Add(key, url);
                 }
 
-                string path = @"D:\Projects\Data\";
+                opps = null;
 
+                string path = @"D:\Projects\Data\";
+                string getSymbol = string.Empty;
                 foreach (var item in mydic)
                 {
                     string fileName = sym + " 20" + item.Key.Substring(item.Key.IndexOf(' ') + 1) + GetMonth(item.Key.Substring(0, 3));
@@ -93,7 +107,9 @@ namespace ScreenScraper
                         {
                             try
                             {
-                                webData = wc.DownloadString(item.Value);
+                                webData = string.Empty;
+                                getSymbol = item.Value; // .Replace("&", "&amp;");
+                                webData = wc.DownloadString(getSymbol);
                             }
                             catch (Exception ex)
                             {
@@ -101,7 +117,8 @@ namespace ScreenScraper
                                 if (iNdx > 99)
                                     Console.WriteLine("Symbol {0} hit iNdx {1}", sym, iNdx);
                             }
-                        } while (webData.IndexOf("The remote server returned an error: (999)") > -1 && iNdx < 100);
+                        } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
+                                        string.IsNullOrEmpty(webData)) && iNdx < 100);
 
                         if (webData.IndexOf("There is no Options data available") > -1 ||
                                 webData.IndexOf("There are no results") > -1 ||
@@ -109,10 +126,19 @@ namespace ScreenScraper
                         {
                             Console.WriteLine("No opetions data for Symbol {0} hit iNdx {1}", sym, iNdx);
                             continue;
-                        } 
+                        }
+
+                        if (string.IsNullOrEmpty(webData))
+                        {
+                            Console.WriteLine("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx);
+                            continue;
+                        }
                         sw.Write(webData);
+                        sw.Flush();
+                        sw.Close();
                     }
                 }
+                mydic.Clear();
             }
         
 
