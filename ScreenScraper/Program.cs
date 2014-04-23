@@ -11,7 +11,11 @@ namespace ScreenScraper
 {
     class Program
     {
-        static void Main(string[] args)
+        readonly static string directoryPath = string.Format("D:/Projects/Data/{0}{1}{2}",
+                                     DateTime.Now.Year.ToString(CultureInfo.InvariantCulture),
+                                     DateTime.Now.Month.ToString("D2"), DateTime.Now.Date.ToString("D2"));
+
+        private static void Main(string[] args)
         {
             string baseUri = "http://finance.yahoo.com";
             string baseUrl = "http://finance.yahoo.com/q/op?s={0}+Options";
@@ -22,6 +26,9 @@ namespace ScreenScraper
             DataSet ds = DeSerializationToDataSet();
             DataTable companyTable = ds.Tables["company"];
 
+            Directory.CreateDirectory(directoryPath);
+
+            WriteLog("Starting at: " + DateTime.Now);
             foreach (DataRow row in companyTable.Rows)
             {
                 int iNdx = 0;
@@ -35,35 +42,37 @@ namespace ScreenScraper
                     try
                     {
                         webData = string.Empty;
-                        webData = wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
+                        webData =
+                            wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
                     }
                     catch (Exception ex)
                     {
                         iNdx++;
                         if (iNdx > 99)
-                            Console.WriteLine("Symbol {0} hit iNdx {1}", sym, iNdx);
+                            WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
                     }
                 } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
-                                        string.IsNullOrEmpty(webData)) && iNdx < 100);
+                          string.IsNullOrEmpty(webData)) && iNdx < 100);
 
                 if (webData.IndexOf("There is no Options data available") > -1 ||
-                        webData.IndexOf("There are no results") > -1 ||
-                        webData.IndexOf("Get Quotes Results for ") > -1 ||
-                            webData.IndexOf("The remote server returned an error: (999)") > -1)
+                    webData.IndexOf("There are no results") > -1 ||
+                    webData.IndexOf("Get Quotes Results for ") > -1 ||
+                    webData.IndexOf("The remote server returned an error: (999)") > -1)
                 {
-                    Console.WriteLine("No opetions data for Symbol {0} hit iNdx {1}", sym, iNdx);
+                    WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
                     continue;
                 }
 
-                if(string.IsNullOrEmpty(webData))
+                if (string.IsNullOrEmpty(webData))
                 {
-                    Console.WriteLine("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx);
+                    WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
                     continue;
                 }
 
-                Console.WriteLine("Count {0}: Symbol {1} hit iNdx {2} and was saved to file.", totalCount, sym, iNdx);
+                WriteLog(string.Format("Count {0}: Symbol {1} hit iNdx {2} and was saved to file.", totalCount, sym, iNdx));
 
-                string newtext = webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
+                string newtext =
+                    webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
                 string money = newtext.Substring(0, newtext.IndexOf("<table", System.StringComparison.Ordinal));
 
                 string[] opps = money.Split('|');
@@ -94,12 +103,12 @@ namespace ScreenScraper
 
                 opps = null;
 
-                string path = @"D:\Projects\Data\";
                 string getSymbol = string.Empty;
                 foreach (var item in mydic)
                 {
-                    string fileName = sym + " 20" + item.Key.Substring(item.Key.IndexOf(' ') + 1) + GetMonth(item.Key.Substring(0, 3));
-                    using (StreamWriter sw = new StreamWriter(path + fileName + ".htm"))
+                    string fileName = "/" + sym + " 20" + item.Key.Substring(item.Key.IndexOf(' ') + 1) +
+                                      GetMonth(item.Key.Substring(0, 3));
+                    using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
                     {
                         iNdx = 0;
 
@@ -115,22 +124,23 @@ namespace ScreenScraper
                             {
                                 iNdx++;
                                 if (iNdx > 99)
-                                    Console.WriteLine("Symbol {0} hit iNdx {1}", sym, iNdx);
+                                    WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
                             }
                         } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
-                                        string.IsNullOrEmpty(webData)) && iNdx < 100);
+                                  string.IsNullOrEmpty(webData)) && iNdx < 100);
 
                         if (webData.IndexOf("There is no Options data available") > -1 ||
-                                webData.IndexOf("There are no results") > -1 ||
-                                    webData.IndexOf("The remote server returned an error: (999)") > -1)
+                            webData.IndexOf("There are no results") > -1 ||
+                            webData.IndexOf("Get Quotes Results for ") > -1 ||
+                            webData.IndexOf("The remote server returned an error: (999)") > -1)
                         {
-                            Console.WriteLine("No opetions data for Symbol {0} hit iNdx {1}", sym, iNdx);
+                            WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
                             continue;
                         }
 
                         if (string.IsNullOrEmpty(webData))
                         {
-                            Console.WriteLine("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx);
+                            WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
                             continue;
                         }
                         sw.Write(webData);
@@ -139,16 +149,25 @@ namespace ScreenScraper
                     }
                 }
                 mydic.Clear();
-            }
-        
 
+
+            }
+            WriteLog(string.Format("Ending at: " + DateTime.Now));
 
             Console.WriteLine("Done");
-            //string fetch = opps[1].Substring(opps[1].IndexOf('/')).Replace("amp;", "");
-            //fetch = baseUri + fetch.Substring(0, fetch.IndexOf('>') - 1);
-            // webData = wc.DownloadString(fetch);
 
             Console.ReadKey();
+        }
+
+
+        private static void WriteLog(string message)
+        {
+            using (StreamWriter log = File.AppendText(directoryPath + "/log.txt"))
+            {
+                log.Write(message + "\r\n");
+                log.Flush();
+                log.Close();
+            }
         }
 
         public static string GetMonth(string month)
