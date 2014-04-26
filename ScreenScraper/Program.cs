@@ -11,17 +11,19 @@ namespace ScreenScraper
 {
     class Program
     {
-        readonly static string directoryPath = string.Format("D:/Projects/Data/{0}{1}{2}",
+        readonly static string directoryPath = string.Format("D:/Projects/Data/Options {0}{1}{2}",
                                      DateTime.Now.Year.ToString(CultureInfo.InvariantCulture),
-                                     DateTime.Now.Month.ToString("D2"), DateTime.Now.Date.ToString("D2"));
+                                     DateTime.Now.Month.ToString("D2"), DateTime.Now.Day.ToString("D2"));
 
         private static void Main(string[] args)
         {
+            string summaryUri = "http://finance.yahoo.com/q?s={0}";
             string baseUri = "http://finance.yahoo.com";
             string baseUrl = "http://finance.yahoo.com/q/op?s={0}+Options";
             string sym = "IBM";
             string webData = string.Empty;
             int totalCount = 0;
+            int maxCount = 200;
 
             DataSet ds = DeSerializationToDataSet();
             DataTable companyTable = ds.Tables["company"];
@@ -37,6 +39,28 @@ namespace ScreenScraper
                 totalCount++;
 
                 System.Net.WebClient wc = new System.Net.WebClient();
+
+                try
+                {
+                    webData = string.Empty;
+                    webData =
+                        wc.DownloadString(string.Format(summaryUri, sym));
+                    //deselected">Options</li>
+                    if(webData.IndexOf("+Options\">Options</a>") < 0)
+                    {
+                        WriteLog(string.Format("Symbol {0} has no options...", sym));
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    iNdx++;
+                    if (iNdx > maxCount)
+                        WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
+                }
+
+                iNdx = 0;
+
                 do
                 {
                     try
@@ -48,15 +72,16 @@ namespace ScreenScraper
                     catch (Exception ex)
                     {
                         iNdx++;
-                        if (iNdx > 99)
+                        if (iNdx > maxCount)
                             WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
                     }
                 } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
-                          string.IsNullOrEmpty(webData)) && iNdx < 100);
+                          string.IsNullOrEmpty(webData)) && iNdx < maxCount);
 
                 if (webData.IndexOf("There is no Options data available") > -1 ||
                     webData.IndexOf("There are no results") > -1 ||
                     webData.IndexOf("Get Quotes Results for ") > -1 ||
+                    webData.IndexOf("is no longer valid") > -1 ||
                     webData.IndexOf("The remote server returned an error: (999)") > -1)
                 {
                     WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
@@ -66,6 +91,11 @@ namespace ScreenScraper
                 if (string.IsNullOrEmpty(webData))
                 {
                     WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
+                    continue;
+                }
+
+                if (webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal) == -1)
+                {
                     continue;
                 }
 
@@ -123,11 +153,11 @@ namespace ScreenScraper
                             catch (Exception ex)
                             {
                                 iNdx++;
-                                if (iNdx > 99)
+                                if (iNdx > maxCount)
                                     WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
                             }
                         } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
-                                  string.IsNullOrEmpty(webData)) && iNdx < 100);
+                                  string.IsNullOrEmpty(webData)) && iNdx < maxCount);
 
                         if (webData.IndexOf("There is no Options data available") > -1 ||
                             webData.IndexOf("There are no results") > -1 ||
@@ -143,6 +173,8 @@ namespace ScreenScraper
                             WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
                             continue;
                         }
+                        WriteLog(string.Format("Saving Symbol {0} hit iNdx {1}", fileName.Replace("/",""), iNdx));
+
                         sw.Write(webData);
                         sw.Flush();
                         sw.Close();
@@ -164,7 +196,7 @@ namespace ScreenScraper
         {
             using (StreamWriter log = File.AppendText(directoryPath + "/log.txt"))
             {
-                log.Write(message + "\r\n");
+                log.Write(DateTime.Now.ToString() + ": " + message + "\r\n");
                 log.Flush();
                 log.Close();
             }
