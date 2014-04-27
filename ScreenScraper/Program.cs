@@ -1,17 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace ScreenScraper
 {
     class Program
     {
-        readonly static string directoryPath = string.Format("D:/Projects/Data/Options {0}{1}{2}",
+        readonly static string directoryPath = string.Format("C:/Projects/Data/Options {0}{1}{2}",
                                      DateTime.Now.Year.ToString(CultureInfo.InvariantCulture),
                                      DateTime.Now.Month.ToString("D2"), DateTime.Now.Day.ToString("D2"));
 
@@ -25,10 +28,14 @@ namespace ScreenScraper
             int totalCount = 0;
             int maxCount = 200;
 
+            string blow = GetSymbolList();
+
+
             DataSet ds = DeSerializationToDataSet();
             DataTable companyTable = ds.Tables["company"];
 
             Directory.CreateDirectory(directoryPath);
+
 
             WriteLog("Starting at: " + DateTime.Now);
             foreach (DataRow row in companyTable.Rows)
@@ -235,14 +242,103 @@ namespace ScreenScraper
             }
         }
 
+        //private static string Get(string uri) 
+        //{
+        //    WebRequest request = WebRequest.Create(uri);
+        //    request.Method = "POST";
+        //    request.ContentType = CoreConstants.contentType;
+        //    request.Headers.Add(CoreConstants.authorizationBearer + postData.token);
+        //    Stream dataStream = request.GetRequestStream();
+        //    dataStream.Write(requestData, 0, requestData.Length);
+        //    dataStream.Dispose();
+
+        //    string jsonResponse = string.Empty;
+        //    using (WebResponse response = request.GetResponse())
+        //    {
+        //        if (((HttpWebResponse)response).StatusDescription == "Created")
+        //        {
+        //            dataStream = response.GetResponseStream();
+        //            using (StreamReader reader = new StreamReader(dataStream))
+        //            {
+        //                jsonResponse = reader.ReadToEnd();
+        //            }
+        //        }
+        //    }
+        //    return jsonData;
+        //}
+
+
+        public static void tryThis(string uri)
+        {  // this works
+            HttpWebRequest request = WebRequest.Create(uri) as HttpWebRequest;
+            request.Method = "GET";
+            while (true)
+            {
+                // Get response   
+                try
+                {
+                    using (WebResponse response = request.GetResponse() as WebResponse)
+                    {
+                        using (Stream stream = response.GetResponseStream())
+                        {
+                            byte[] buffer = new byte[response.ContentLength];
+                            MemoryStream ms = new MemoryStream();
+                            int bytesRead, totalBytesRead = 0;
+
+                            do
+                            {
+                                bytesRead = stream.Read(buffer, 0, buffer.Length);
+                                totalBytesRead += bytesRead;
+
+                                ms.Write(buffer, 0, bytesRead);
+                            } while (bytesRead > 0);
+
+                            string path = @"D:\templates\fsx.jpg";
+                            if (File.Exists(path))
+                                File.Delete(path);
+
+                            var fs = new FileStream(path, FileMode.Create);
+                            fs.Write(ms.ToArray(), 0, totalBytesRead);
+                            fs.Flush();
+                            fs.Close();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine(ex.Message);
+                }
+            }
+        }
+        private static string GetSymbolList()
+        {
+            string url = string.Format(
+                "http://query.yahooapis.com/v1/public/yql?q={0}", "select%20*%20from%20yahoo.finance.industry%20where%20id%20in%20(select%20industry.id%20from%20yahoo.finance.sectors)&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys");
+            string webData = string.Empty;
+
+            try
+            {
+                using (WebClient client = new WebClient())
+                {
+                    webData = client.DownloadString(url);
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog(string.Format("Error reading XML. Error: {0}", ex.Message));
+            }
+
+            return webData;
+        }
+
 
         private static DataSet DeSerializationToDataSet()
         {
             DataSet deSerializeDS = new DataSet();
             try
             {
-                deSerializeDS.ReadXmlSchema(@"D:\Projects\ScreenScraper\ScreenScraper\symbolslist.xml");
-                deSerializeDS.ReadXml(@"D:\Projects\ScreenScraper\ScreenScraper\symbolslist.xml", XmlReadMode.IgnoreSchema);
+                deSerializeDS.ReadXmlSchema(@"C:\Projects\ScreenScraper\ScreenScraper\symbolslist.xml");
+                deSerializeDS.ReadXml(@"C:\Projects\ScreenScraper\ScreenScraper\symbolslist.xml", XmlReadMode.IgnoreSchema);
             }
             catch (Exception ex)
             {
