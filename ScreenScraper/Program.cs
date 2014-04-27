@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -14,29 +15,27 @@ namespace ScreenScraper
 {
     class Program
     {
-        readonly static string directoryPath = string.Format("C:/Projects/Data/Options {0}{1}{2}",
+        readonly static string directoryPath = string.Format("D:/Projects/Data/Options {0}{1}{2}",
                                      DateTime.Now.Year.ToString(CultureInfo.InvariantCulture),
                                      DateTime.Now.Month.ToString("D2"), DateTime.Now.Day.ToString("D2"));
+        readonly static int maxCount = 200;
+        readonly static string baseUrl = "http://finance.yahoo.com/q/op?s={0}+Options";
+        readonly static string baseUri = "http://finance.yahoo.com";
 
         private static void Main(string[] args)
         {
             string summaryUri = "http://finance.yahoo.com/q?s={0}";
-            string baseUri = "http://finance.yahoo.com";
-            string baseUrl = "http://finance.yahoo.com/q/op?s={0}+Options";
             string sym = "IBM";
             string webData = string.Empty;
             int totalCount = 0;
-            int maxCount = 200;
 
-            string blow = GetSymbolList();
-
-
-            DataSet ds = DeSerializationToDataSet();
+            string result = GetSymbolList();
+            
+            DataSet ds = DeSerializationToDataSet(result);
             DataTable companyTable = ds.Tables["company"];
 
             Directory.CreateDirectory(directoryPath);
-
-
+            
             WriteLog("Starting at: " + DateTime.Now);
             foreach (DataRow row in companyTable.Rows)
             {
@@ -68,77 +67,11 @@ namespace ScreenScraper
 
                 iNdx = 0;
 
-                do
-                {
-                    try
-                    {
-                        webData = string.Empty;
-                        webData =
-                            wc.DownloadString(string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
-                    }
-                    catch (Exception ex)
-                    {
-                        iNdx++;
-                        if (iNdx > maxCount)
-                            WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
-                    }
-                } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
-                          string.IsNullOrEmpty(webData)) && iNdx < maxCount);
+                webData = GetOpionsPage(sym, string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
 
-                if (webData.IndexOf("There is no Options data available") > -1 ||
-                    webData.IndexOf("There are no results") > -1 ||
-                    webData.IndexOf("Get Quotes Results for ") > -1 ||
-                    webData.IndexOf("is no longer valid") > -1 ||
-                    webData.IndexOf("The remote server returned an error: (999)") > -1)
-                {
-                    WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(webData))
-                {
-                    WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
-                    continue;
-                }
-
-                if (webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal) == -1)
-                {
-                    continue;
-                }
-
-                WriteLog(string.Format("Count {0}: Symbol {1} hit iNdx {2} and was saved to file.", totalCount, sym, iNdx));
-
-                string newtext =
-                    webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
-                string money = newtext.Substring(0, newtext.IndexOf("<table", System.StringComparison.Ordinal));
-
-                string[] opps = money.Split('|');
-
-                Dictionary<string, string> mydic = new Dictionary<string, string>();
-
-                string url = string.Format(baseUrl, sym);
-
-                string key = opps[0];
-                key = key.Substring(key.IndexOf('>') + 1);
-                key = key.Substring(0, key.IndexOf('<'));
-
-                mydic.Add(key, url);
-
-                for (int i = 1; i < opps.Count(); i++)
-                {
-                    key = opps[i];
-                    key = key.Substring(key.IndexOf('>') + 1);
-                    if (key.IndexOf('<') > -1)
-                        key = key.Substring(0, key.IndexOf('<'));
-                    else
-                        key = key;
-                    url = opps[i];
-                    url = url.Substring(opps[1].IndexOf('/')).Replace("amp;", "");
-                    url = baseUri + url.Substring(0, url.IndexOf('>') - 1);
-                    mydic.Add(key, url);
-                }
-
-                opps = null;
+                if (string.IsNullOrEmpty(webData)) continue;
+                
+                Dictionary<string, string> mydic = GetUris(sym, webData);
 
                 string getSymbol = string.Empty;
                 foreach (var item in mydic)
@@ -147,49 +80,16 @@ namespace ScreenScraper
                                       GetMonth(item.Key.Substring(0, 3));
                     using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
                     {
-                        iNdx = 0;
-
-                        do
-                        {
-                            try
-                            {
-                                webData = string.Empty;
-                                getSymbol = item.Value; // .Replace("&", "&amp;");
-                                webData = wc.DownloadString(getSymbol);
-                            }
-                            catch (Exception ex)
-                            {
-                                iNdx++;
-                                if (iNdx > maxCount)
-                                    WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
-                            }
-                        } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
-                                  string.IsNullOrEmpty(webData)) && iNdx < maxCount);
-
-                        if (webData.IndexOf("There is no Options data available") > -1 ||
-                            webData.IndexOf("There are no results") > -1 ||
-                            webData.IndexOf("Get Quotes Results for ") > -1 ||
-                            webData.IndexOf("The remote server returned an error: (999)") > -1)
-                        {
-                            WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
-                            continue;
-                        }
-
-                        if (string.IsNullOrEmpty(webData))
-                        {
-                            WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
-                            continue;
-                        }
-                        WriteLog(string.Format("Saving Symbol {0} hit iNdx {1}", fileName.Replace("/",""), iNdx));
+                        webData = GetOpionsPage(fileName.Replace("/",""), item.Value);
+                        if (string.IsNullOrEmpty(webData)) continue;
 
                         sw.Write(webData);
                         sw.Flush();
                         sw.Close();
+                        WriteLog(string.Format("Count {0}: Symbol {1} hit iNdx {2} and was saved to file.", totalCount, sym, iNdx));
                     }
                 }
-                mydic.Clear();
-
-
+                mydic.Clear();                
             }
             WriteLog(string.Format("Ending at: " + DateTime.Now));
 
@@ -198,6 +98,91 @@ namespace ScreenScraper
             Console.ReadKey();
         }
 
+        public static Dictionary<string, string> GetUris(string sym, string webData)
+        {
+            string newtext =
+                webData.Substring(webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal));
+            string money = newtext.Substring(0, newtext.IndexOf("<table", System.StringComparison.Ordinal));
+
+            string[] opps = money.Split('|');
+
+            Dictionary<string, string> mydic = new Dictionary<string, string>();
+
+            string url = string.Format(baseUrl, sym);
+
+            string key = opps[0];
+            key = key.Substring(key.IndexOf('>') + 1);
+            key = key.Substring(0, key.IndexOf('<'));
+
+            mydic.Add(key, url);
+
+            for (int i = 1; i < opps.Count(); i++)
+            {
+                key = opps[i];
+                key = key.Substring(key.IndexOf('>') + 1);
+                if (key.IndexOf('<') > -1)
+                    key = key.Substring(0, key.IndexOf('<'));
+                else
+                    key = key;
+                url = opps[i];
+                url = url.Substring(opps[1].IndexOf('/')).Replace("amp;", "");
+                url = baseUri + url.Substring(0, url.IndexOf('>') - 1);
+                mydic.Add(key, url);
+            }
+
+            opps = null;
+            return mydic;
+        }
+
+        private static string GetOpionsPage(string sym, string url)
+        {
+            int iNdx = 0;
+            string webData = string.Empty;
+
+            System.Net.WebClient wc = new System.Net.WebClient();
+            do
+            {
+                try
+                {
+                    webData = string.Empty;
+                    webData =
+                        wc.DownloadString(url); // string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
+                }
+                catch (Exception ex)
+                {
+                    iNdx++;
+                    if (iNdx > maxCount)
+                        WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
+                }
+            } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
+                      string.IsNullOrEmpty(webData)) && iNdx < maxCount);
+
+            if (webData.IndexOf("There is no Options data available") > -1 ||
+                webData.IndexOf("There are no results") > -1 ||
+                webData.IndexOf("Get Quotes Results for ") > -1 ||
+                webData.IndexOf("is no longer valid") > -1 ||
+                webData.IndexOf("The remote server returned an error: (999)") > -1)
+            {
+                WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
+                webData = string.Empty;
+            }
+
+            if (string.IsNullOrEmpty(webData))
+            {
+                WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
+                webData = string.Empty;
+            }
+
+            if (webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal) == -1)
+            {
+                WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
+                webData = string.Empty;
+            }
+
+            WriteLog(string.Format("Symbol {0} hit iNdx {1} and will be saved to file.", sym, iNdx));
+
+            return webData;
+        }
 
         private static void WriteLog(string message)
         {
@@ -242,74 +227,6 @@ namespace ScreenScraper
             }
         }
 
-        //private static string Get(string uri) 
-        //{
-        //    WebRequest request = WebRequest.Create(uri);
-        //    request.Method = "POST";
-        //    request.ContentType = CoreConstants.contentType;
-        //    request.Headers.Add(CoreConstants.authorizationBearer + postData.token);
-        //    Stream dataStream = request.GetRequestStream();
-        //    dataStream.Write(requestData, 0, requestData.Length);
-        //    dataStream.Dispose();
-
-        //    string jsonResponse = string.Empty;
-        //    using (WebResponse response = request.GetResponse())
-        //    {
-        //        if (((HttpWebResponse)response).StatusDescription == "Created")
-        //        {
-        //            dataStream = response.GetResponseStream();
-        //            using (StreamReader reader = new StreamReader(dataStream))
-        //            {
-        //                jsonResponse = reader.ReadToEnd();
-        //            }
-        //        }
-        //    }
-        //    return jsonData;
-        //}
-
-
-        public static void tryThis(string uri)
-        {  // this works
-            HttpWebRequest request = WebRequest.Create(uri) as HttpWebRequest;
-            request.Method = "GET";
-            while (true)
-            {
-                // Get response   
-                try
-                {
-                    using (WebResponse response = request.GetResponse() as WebResponse)
-                    {
-                        using (Stream stream = response.GetResponseStream())
-                        {
-                            byte[] buffer = new byte[response.ContentLength];
-                            MemoryStream ms = new MemoryStream();
-                            int bytesRead, totalBytesRead = 0;
-
-                            do
-                            {
-                                bytesRead = stream.Read(buffer, 0, buffer.Length);
-                                totalBytesRead += bytesRead;
-
-                                ms.Write(buffer, 0, bytesRead);
-                            } while (bytesRead > 0);
-
-                            string path = @"D:\templates\fsx.jpg";
-                            if (File.Exists(path))
-                                File.Delete(path);
-
-                            var fs = new FileStream(path, FileMode.Create);
-                            fs.Write(ms.ToArray(), 0, totalBytesRead);
-                            fs.Flush();
-                            fs.Close();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine(ex.Message);
-                }
-            }
-        }
         private static string GetSymbolList()
         {
             string url = string.Format(
@@ -321,6 +238,7 @@ namespace ScreenScraper
                 using (WebClient client = new WebClient())
                 {
                     webData = client.DownloadString(url);
+                    webData = Regex.Replace(webData, @"[^\u0000-\u007F]", string.Empty).Replace("&", "&amp;");
                 }
             }
             catch (Exception ex)
@@ -331,6 +249,24 @@ namespace ScreenScraper
             return webData;
         }
 
+
+        private static DataSet DeSerializationToDataSet(string data)
+        {
+            DataSet deSerializeDS = new DataSet();
+            try
+            {
+                using (TextReader theReader = new StringReader(data))
+                {
+                    deSerializeDS.ReadXml(theReader);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog(string.Format("Error desearializing XML. Error: {0}", ex.Message));
+            }
+            return deSerializeDS;
+        }
 
         private static DataSet DeSerializationToDataSet()
         {
@@ -345,7 +281,6 @@ namespace ScreenScraper
                 // Handle Exceptions Here…..
             }
             return deSerializeDS;
-
         }
     }
 }
