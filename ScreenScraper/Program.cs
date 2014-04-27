@@ -21,11 +21,11 @@ namespace ScreenScraper
         readonly static int maxCount = 200;
         readonly static string baseUrl = "http://finance.yahoo.com/q/op?s={0}+Options";
         readonly static string baseUri = "http://finance.yahoo.com";
+        readonly static string summaryUri = "http://finance.yahoo.com/q?s={0}";
 
         private static void Main(string[] args)
         {
-            string summaryUri = "http://finance.yahoo.com/q?s={0}";
-            string sym = "IBM";
+            string sym = string.Empty;
             string webData = string.Empty;
             int totalCount = 0;
 
@@ -39,33 +39,12 @@ namespace ScreenScraper
             WriteLog("Starting at: " + DateTime.Now);
             foreach (DataRow row in companyTable.Rows)
             {
-                int iNdx = 0;
                 sym = row["symbol"].ToString();
 
                 totalCount++;
 
-                System.Net.WebClient wc = new System.Net.WebClient();
-
-                try
-                {
-                    webData = string.Empty;
-                    webData =
-                        wc.DownloadString(string.Format(summaryUri, sym));
-                    //deselected">Options</li>
-                    if(webData.IndexOf("+Options\">Options</a>") < 0)
-                    {
-                        WriteLog(string.Format("Symbol {0} has no options...", sym));
-                        continue;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    iNdx++;
-                    if (iNdx > maxCount)
-                        WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
-                }
-
-                iNdx = 0;
+                webData = GetSummary(sym);
+                if (string.IsNullOrEmpty(webData)) continue;
 
                 webData = GetOpionsPage(sym, string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
 
@@ -86,7 +65,7 @@ namespace ScreenScraper
                         sw.Write(webData);
                         sw.Flush();
                         sw.Close();
-                        WriteLog(string.Format("Count {0}: Symbol {1} hit iNdx {2} and was saved to file.", totalCount, sym, iNdx));
+                        WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
                     }
                 }
                 mydic.Clear();                
@@ -96,6 +75,33 @@ namespace ScreenScraper
             Console.WriteLine("Done");
 
             Console.ReadKey();
+        }
+
+        public static string GetSummary(string sym)
+        {
+            System.Net.WebClient wc = new System.Net.WebClient();
+            int iNdx = 0;
+            string webData = string.Empty;
+
+            try
+            {
+                webData =
+                    wc.DownloadString(string.Format(summaryUri, sym));
+
+                if (webData.IndexOf("+Options\">Options</a>") < 0)
+                {
+                    WriteLog(string.Format("Symbol {0} has no options...", sym));
+                    webData = "";
+                }
+            }
+            catch (Exception ex)
+            {
+                iNdx++;
+                if (iNdx > maxCount)
+                    WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
+                webData = "";
+            }
+            return webData;
         }
 
         public static Dictionary<string, string> GetUris(string sym, string webData)
@@ -142,17 +148,15 @@ namespace ScreenScraper
             System.Net.WebClient wc = new System.Net.WebClient();
             do
             {
+                iNdx++;
                 try
                 {
                     webData = string.Empty;
-                    webData =
-                        wc.DownloadString(url); // string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
+                    webData = wc.DownloadString(url);
                 }
                 catch (Exception ex)
                 {
-                    iNdx++;
-                    if (iNdx > maxCount)
-                        WriteLog(string.Format("Symbol {0} hit iNdx {1}", sym, iNdx));
+                    WriteLog(string.Format("Error for Symbol {0} hit iNdx {1}. Error: {2}", sym, iNdx, ex.Message));
                 }
             } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
                       string.IsNullOrEmpty(webData)) && iNdx < maxCount);
@@ -175,7 +179,7 @@ namespace ScreenScraper
 
             if (webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal) == -1)
             {
-                WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
+                WriteLog(string.Format("Invalid data for Symbol {0} hit iNdx {1}", sym, iNdx));
                 webData = string.Empty;
             }
 
@@ -248,8 +252,7 @@ namespace ScreenScraper
 
             return webData;
         }
-
-
+        
         private static DataSet DeSerializationToDataSet(string data)
         {
             DataSet deSerializeDS = new DataSet();
@@ -258,7 +261,6 @@ namespace ScreenScraper
                 using (TextReader theReader = new StringReader(data))
                 {
                     deSerializeDS.ReadXml(theReader);
-
                 }
             }
             catch (Exception ex)
