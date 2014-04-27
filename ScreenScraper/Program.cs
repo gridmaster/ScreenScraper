@@ -22,26 +22,124 @@ namespace ScreenScraper
         readonly static string baseUrl = "http://finance.yahoo.com/q/op?s={0}+Options";
         readonly static string baseUri = "http://finance.yahoo.com";
         readonly static string summaryUri = "http://finance.yahoo.com/q?s={0}";
+        readonly static string insiderUri = "http://finance.yahoo.com/q/it?s={0}+Insider+Transactions";
+        private static int totalCount = 0;
 
         private static void Main(string[] args)
         {
             string sym = string.Empty;
             string webData = string.Empty;
-            int totalCount = 0;
 
             string result = GetSymbolList();
             
             DataSet ds = DeSerializationToDataSet(result);
             DataTable companyTable = ds.Tables["company"];
 
+            
+            WriteLog("Starting at: " + DateTime.Now);
+
+            GetInsider(companyTable);
+
+            //GetOptions(companyTable);
+            
+            WriteLog(string.Format("Ending at: " + DateTime.Now));
+
+            Console.WriteLine("Done");
+
+            Console.ReadKey();
+        }
+
+        public static void GetInsider(DataTable companyTable)
+        {
+            Directory.CreateDirectory(directoryPath.Replace("Options", "Insider"));
+
+            foreach (DataRow row in companyTable.Rows)
+            {
+                string sym = row["symbol"].ToString();
+
+                totalCount++;
+
+                string webData = GetInsider(sym);
+
+                if (string.IsNullOrEmpty(webData)) continue;
+
+                webData = GetInsiderPage(sym, string.Format(insiderUri, sym));
+
+                if (string.IsNullOrEmpty(webData)) continue;
+
+                string fileName = "/" + sym + " Insider";
+
+                webData = webData.Substring(webData.IndexOf("yfi_itrans_insider_purchases"));
+                webData = webData.Substring(webData.IndexOf("<table"));
+                var stuff = HtmlWorks.GetText(webData, "table");
+                var rows = HtmlWorks.GetRows(stuff);
+
+
+                using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
+                {
+                    sw.Write(webData);
+                    sw.Flush();
+                    sw.Close();
+                    WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
+                }
+            }
+        }
+
+        private static string GetInsiderPage(string sym, string url)
+        {
+            int iNdx = 0;
+            string webData = string.Empty;
+
+            System.Net.WebClient wc = new System.Net.WebClient();
+            do
+            {
+                iNdx++;
+                try
+                {
+                    webData = string.Empty;
+                    webData = wc.DownloadString(url);
+                }
+                catch (Exception ex)
+                {
+                    WriteLog(string.Format("Error for Symbol {0} hit iNdx {1}. Error: {2}", sym, iNdx, ex.Message));
+                }
+            } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
+                      string.IsNullOrEmpty(webData)) && iNdx < maxCount);
+
+            if (webData.IndexOf("There is no Insider Transactions data available") > -1 ||
+                webData.IndexOf("There are no results") > -1 ||
+                webData.IndexOf("Get Quotes Results for ") > -1 ||
+                webData.IndexOf("is no longer valid") > -1 ||
+                webData.IndexOf("The remote server returned an error: (999)") > -1)
+            {
+                WriteLog(string.Format("No insider data for Symbol {0} hit iNdx {1}", sym, iNdx));
+                webData = string.Empty;
+            }
+
+            if (string.IsNullOrEmpty(webData))
+            {
+                WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
+                webData = string.Empty;
+            }
+
+            WriteLog(string.Format("Symbol {0} returned insider data at iNdx {1}.", sym, iNdx));
+
+            return webData;
+        }
+        
+        public static void GetOptions(DataTable companyTable)
+        {
+            
             Directory.CreateDirectory(directoryPath);
             
             WriteLog("Starting at: " + DateTime.Now);
             foreach (DataRow row in companyTable.Rows)
             {
-                sym = row["symbol"].ToString();
+                string sym = row["symbol"].ToString();
 
                 totalCount++;
+
+                string webData = GetInsider(sym);
 
                 webData = GetSummary(sym);
                 if (string.IsNullOrEmpty(webData)) continue;
@@ -70,13 +168,35 @@ namespace ScreenScraper
                 }
                 mydic.Clear();                
             }
-            WriteLog(string.Format("Ending at: " + DateTime.Now));
-
-            Console.WriteLine("Done");
-
-            Console.ReadKey();
         }
 
+        public static string GetInsider(string sym)
+        {
+            System.Net.WebClient wc = new System.Net.WebClient();
+            int iNdx = 0;
+            string webData = string.Empty;
+
+            try
+            {
+                webData =
+                    wc.DownloadString(string.Format(summaryUri, sym));
+
+                if (webData.IndexOf("+Insider+Transactions\">Insider Transactions</a>") < 0)
+                {
+                    WriteLog(string.Format("Symbol {0} has no insider data...", sym));
+                    webData = "";
+                }
+            }
+            catch (Exception ex)
+            {
+                iNdx++;
+                if (iNdx > maxCount)
+                    WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
+                webData = "";
+            }
+            return webData;
+        }
+        
         public static string GetSummary(string sym)
         {
             System.Net.WebClient wc = new System.Net.WebClient();
@@ -183,7 +303,7 @@ namespace ScreenScraper
                 webData = string.Empty;
             }
 
-            WriteLog(string.Format("Symbol {0} hit iNdx {1} and will be saved to file.", sym, iNdx));
+            WriteLog(string.Format("Symbol {0} returned options data at iNdx {1}.", sym, iNdx));
 
             return webData;
         }
