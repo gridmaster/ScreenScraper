@@ -76,8 +76,39 @@ namespace ScreenScraper
                 webData = webData.Substring(webData.IndexOf("yfi_itrans_insider_purchases"));
                 webData = webData.Substring(webData.IndexOf("<table"));
                 var stuff = HtmlWorks.GetText(webData, "table");
-                var rows = HtmlWorks.GetRows(stuff);
 
+                var result = GetRows(stuff);
+
+                webData = webData.Substring(stuff.Length);
+
+                webData = webData.Substring(webData.IndexOf("<table"));
+                stuff = HtmlWorks.GetText(webData, "table");
+
+                var bigResult = GetRows(stuff);
+
+                //var bull = stuff.Replace("<tr>", "|").Split('|');
+
+                //IList<string> rowData = new List<string>();
+
+                //foreach (var item in bull)
+                //{
+                //    if (item == "") continue;
+                //    if (item.Substring(0, "<td class".Length) == "<td class")
+                //    {
+                //        string workstr = string.Empty;
+                //        workstr = item.Substring(item.IndexOf(">") + 1);
+                //        string colData = string.Empty;
+                //        colData = workstr.Substring(0, workstr.IndexOf("</td"));
+
+                //        while (workstr.IndexOf("<td") != -1)
+                //        {
+                //            workstr = workstr.Substring(workstr.IndexOf("<td"));
+                //            workstr = workstr.Substring(workstr.IndexOf(">") + 1);
+                //            colData += "|" + workstr.Substring(0, workstr.IndexOf("</td"));
+                //        }
+                //        rowData.Add(colData);
+                //    }
+                //}
 
                 using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
                 {
@@ -87,6 +118,34 @@ namespace ScreenScraper
                     WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
                 }
             }
+        }
+
+        private static IList<string> GetRows(string webData)
+        {
+            var arraySplit = webData.Replace("<tr>", "|").Split('|');
+
+            IList<string> rowData = new List<string>();
+
+            foreach (var item in arraySplit)
+            {
+                if (item == "") continue;
+                if (item.Substring(0, "<td class".Length) == "<td class")
+                {
+                    string workstr = string.Empty;
+                    workstr = item.Substring(item.IndexOf(">") + 1);
+                    string colData = string.Empty;
+                    colData = workstr.Substring(0, workstr.IndexOf("</td"));
+
+                    while (workstr.IndexOf("<td") != -1)
+                    {
+                        workstr = workstr.Substring(workstr.IndexOf("<td"));
+                        workstr = workstr.Substring(workstr.IndexOf(">") + 1);
+                        colData += "|" + workstr.Substring(0, workstr.IndexOf("</td"));
+                    }
+                    rowData.Add(colData);
+                }
+            }
+            return rowData;
         }
 
         private static string GetInsiderPage(string sym, string url)
