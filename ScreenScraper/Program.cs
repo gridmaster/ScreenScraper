@@ -35,7 +35,11 @@ namespace ScreenScraper
             DataSet ds = DeSerializationToDataSet(result);
             DataTable companyTable = ds.Tables["company"];
 
-            
+            DataView dv = new DataView(companyTable);
+            dv.Sort = "symbol asc";
+
+            DataTable sortedTable = dv.ToTable();
+
             WriteLog("Starting at: " + DateTime.Now);
 
             GetInsider(companyTable);
