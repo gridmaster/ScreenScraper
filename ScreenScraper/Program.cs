@@ -86,30 +86,6 @@ namespace ScreenScraper
 
                 var bigResult = GetRows(stuff);
 
-                //var bull = stuff.Replace("<tr>", "|").Split('|');
-
-                //IList<string> rowData = new List<string>();
-
-                //foreach (var item in bull)
-                //{
-                //    if (item == "") continue;
-                //    if (item.Substring(0, "<td class".Length) == "<td class")
-                //    {
-                //        string workstr = string.Empty;
-                //        workstr = item.Substring(item.IndexOf(">") + 1);
-                //        string colData = string.Empty;
-                //        colData = workstr.Substring(0, workstr.IndexOf("</td"));
-
-                //        while (workstr.IndexOf("<td") != -1)
-                //        {
-                //            workstr = workstr.Substring(workstr.IndexOf("<td"));
-                //            workstr = workstr.Substring(workstr.IndexOf(">") + 1);
-                //            colData += "|" + workstr.Substring(0, workstr.IndexOf("</td"));
-                //        }
-                //        rowData.Add(colData);
-                //    }
-                //}
-
                 using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
                 {
                     sw.Write(webData);
