@@ -1,7 +1,6 @@
 D:\Projects\ScreenScraper\ScreenScraper\bin\Debug\ScreenScraper.exe.config
 D:\Projects\ScreenScraper\ScreenScraper\bin\Debug\ScreenScraper.exe
 D:\Projects\ScreenScraper\ScreenScraper\bin\Debug\ScreenScraper.pdb
-D:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.csprojResolveAssemblyReference.cache
 D:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.exe
 D:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.pdb
 C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\ScreenScraper.exe.config

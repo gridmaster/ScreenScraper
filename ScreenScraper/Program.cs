@@ -77,14 +77,41 @@ namespace ScreenScraper
                 webData = webData.Substring(webData.IndexOf("<table"));
                 var stuff = HtmlWorks.GetText(webData, "table");
 
-                var result = GetRows(stuff);
+                IList<string> insider = GetRows(stuff);
 
                 webData = webData.Substring(stuff.Length);
 
                 webData = webData.Substring(webData.IndexOf("<table"));
                 stuff = HtmlWorks.GetText(webData, "table");
 
-                var bigResult = GetRows(stuff);
+                IList<string> institution = GetRows(stuff);
+
+                string[] purchaseArray = insider[0].Split('|');
+                string[] salesArray = insider[1].Split('|');
+                string[] netArray = insider[2].Split('|');
+                string[] totalArray = insider[3].Split('|');
+                string[] percentArray = insider[4].Split('|');
+
+                string[] institutionNet = institution[0].Split('|');
+                string[] institutionPercent = institution[1].Split('|');
+
+                InsiderTransactions it = new InsiderTransactions
+                {
+                    Symbol = sym,
+                    SymbolId = 0,
+                    PurchasesShares = purchaseArray[1],
+                    PurchasesTrans = purchaseArray[2],
+                    SalesShares = salesArray[1],
+                    SalesTrans = salesArray[2],
+                    NetSharesPurchasedSoldShares = netArray[1],
+                    NetSharesPurchasedSoldTrans = netArray[2],
+                    TotalInsiderSharesHeldShares = totalArray[1],
+                    TotalInsiderSharesHeldTrans = totalArray[2],
+                    PercentNetSharesPurchasedSoldShares = percentArray[1],
+                    PercentNetSharesPurchasedSoldTrans = percentArray[2],
+                    InstitutioNetSharePurchasedSold = institution[1],
+                    InstitutionPercentChangeInSharesHeld = institutionPercent[1]
+                };
 
                 using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
                 {
