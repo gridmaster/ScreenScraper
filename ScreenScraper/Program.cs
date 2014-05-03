@@ -15,7 +15,7 @@ namespace ScreenScraper
 {
     class Program
     {
-        readonly static string directoryPath = string.Format("D:/Projects/Data/Options {0}{1}{2}",
+        readonly static string directoryPath = string.Format("D:/Projects/Data/{0} {1}{2}{3}", "Insider",
                                      DateTime.Now.Year.ToString(CultureInfo.InvariantCulture),
                                      DateTime.Now.Month.ToString("D2"), DateTime.Now.Day.ToString("D2"));
         readonly static int maxCount = 200;
@@ -29,7 +29,6 @@ namespace ScreenScraper
         {
             string sym = string.Empty;
             string webData = string.Empty;
-
             string result = GetSymbolList();
             
             DataSet ds = DeSerializationToDataSet(result);
@@ -95,7 +94,7 @@ namespace ScreenScraper
                 string[] institutionNet = institution[0].Split('|');
                 string[] institutionPercent = institution[1].Split('|');
 
-                InsiderTransactions it = new InsiderTransactions
+                InsiderTransaction it = new InsiderTransaction
                 {
                     Symbol = sym,
                     SymbolId = 0,
@@ -109,17 +108,31 @@ namespace ScreenScraper
                     TotalInsiderSharesHeldTrans = totalArray[2],
                     PercentNetSharesPurchasedSoldShares = percentArray[1],
                     PercentNetSharesPurchasedSoldTrans = percentArray[2],
-                    InstitutioNetSharePurchasedSold = institution[1],
-                    InstitutionPercentChangeInSharesHeld = institutionPercent[1]
+                    InstitutioNetSharePurchasedSold = institutionNet[1],
+                    InstitutionPercentChangeInSharesHeld = institutionPercent[1],
+                    Date = DateTime.Now
                 };
 
-                using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
+                try
                 {
-                    sw.Write(webData);
-                    sw.Flush();
-                    sw.Close();
-                    WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
+                    using (var db = new ScreenScraperContext())
+                    {
+                        db.InsiderTransactions.Add(it);
+                        db.SaveChanges();
+                    }
                 }
+                catch (Exception ex)
+                {
+ 
+                }
+
+                //using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
+                //{
+                //    sw.Write(webData);
+                //    sw.Flush();
+                //    sw.Close();
+                //    WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
+                //}
             }
         }
 
@@ -429,6 +442,14 @@ namespace ScreenScraper
                 {
                     webData = client.DownloadString(url);
                     webData = Regex.Replace(webData, @"[^\u0000-\u007F]", string.Empty).Replace("&", "&amp;");
+                    if (webData.Length < 500)
+                    {
+                        webData = "";
+                        using( StreamReader sr = new StreamReader(@"D:\Projects\ScreenScraper\ScreenScraper\symbolslist.xml") )
+                        {
+                            webData = sr.ReadToEnd();
+                        }
+                    }
                 }
             }
             catch (Exception ex)

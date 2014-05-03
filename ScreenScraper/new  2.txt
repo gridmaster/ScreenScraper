@@ -1,0 +1,33 @@
+<table cellspacing="1" cellpadding="2" width="100%" border="0">
+<tr>
+<td colspan="4" class="yfnc_tablehead1"><strong>Insider Purchases</strong> - <small>Last 6 Months</small></td><
+/tr>
+<tr>
+<th scope="col" class="yfnc_tableheadcur3">&#160;</th><th scope="col" class="yfnc_tableheadcur3" align="right">Shares</th><th scope="col" class="yfnc_tableheadcur3" align="right">Trans</th>
+</tr>
+<tr>
+<td class="yfnc_datamodlabel1">Purchases</td>
+<td class="yfnc_tabledata1" align="right" width="20%">N/A</td>
+<td class="yfnc_tabledata1" align="right" width="20%">0</td>
+</tr>
+<tr>
+<td class="yfnc_datamodlabel1">Sales</td><td class="yfnc_tabledata1" align="right">43,468</td><td class="yfnc_tabledata1" align="right" width="20%">15</td></tr>
+<tr><td class="yfnc_datamodlabel1">Net Shares Purchased<br/>(Sold)</td><td class="yfnc_tabledata1" align="right">(43,468)</td><td class="yfnc_tabledata1" align="right" width="20%">15</td></tr>
+<tr><td class="yfnc_datamodlabel1">Total Insider Shares Held</td><td class="yfnc_tabledata1" align="right" width="20%">4.7M</td><td class="yfnc_tabledata1" align="right" width="20%">N/A</td></tr>
+<tr><td class="yfnc_datamodlabel1">% Net Shares Purchased<br/>(Sold)</td><td class="yfnc_tabledata1" align="right">(0.9%)</td><td class="yfnc_tabledata1" align="right" width="20%">N/A</td></tr>
+</table>
+</td></tr><
+/table>
+<table class="yfnc_tableout1" id="yfi_itrans_net_institutional" cellspacing="0" cellpadding="0" width="100%" border="0">
+<tr>
+<td><table cellspacing="1" cellpadding="2" width="100%" border="0">
+<tr>
+<td colspan="4" class="yfnc_tablehead1"><strong>Net Institutional Purchases</strong> - <small>Prior Qtr to Latest Qtr</small></td>
+</tr>
+<tr><th scope="col" class="yfnc_tableheadcur3">&#160;</th><th scope="col" class="yfnc_tableheadcur3" align="right">Shares</th></tr>
+<tr><td class="yfnc_datamodlabel1">Net Shares Purchased<br/>(Sold)</td>
+<td class="yfnc_tabledata1" align="right" width="20%">(1,938,300)</td></tr>
+<tr><td class="yfnc_datamodlabel1">% Change in Institutional Shares Held</td>
+<td class="yfnc_tabledata1" align="right" width="20%">(10.37%)</td></tr>
+</table>
+</td></tr></table><table cellspacing="0" cellpadding="5" border="0"><tr><td nowrap height="10"><center><small>Data provided by <a href="http://www.thomson.com/financial/financial.jsp" rel="nofollow">Thomson Financial</a></small></center></td></tr></table><br></td><td width="15"></td><td align="center" width="38%"><!-- SpaceID=0 robot -->
