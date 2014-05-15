@@ -38,6 +38,9 @@
     <Reference Include="EntityFramework.SqlServer">
       <HintPath>packages\EntityFramework.6.1.0\lib\net45\EntityFramework.SqlServer.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>packages\Newtonsoft.Json.6.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
@@ -50,11 +53,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="HtmlWorks.cs" />
+    <Compile Include="IndustryView.cs" />
     <Compile Include="InsiderTransaction.cs" />
+    <Compile Include="Models\BaseSymbol.cs" />
+    <Compile Include="Models\Industries.cs" />
+    <Compile Include="Models\Industry.cs" />
+    <Compile Include="Models\Sectors.cs" />
+    <Compile Include="Models\WCFSector.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ScreenScraperContext.cs" />
     <Compile Include="SharesTrans.cs" />
+    <Compile Include="Models\Sector.cs" />
+    <Compile Include="SymbolContext.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

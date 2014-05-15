@@ -8,9 +8,15 @@ C:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.exe
 C:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.pdb
 C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\ScreenScraper.exe
 C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\ScreenScraper.pdb
-C:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.csprojResolveAssemblyReference.cache
 D:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.csprojResolveAssemblyReference.cache
 D:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.dll
 D:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.SqlServer.dll
 D:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.xml
 D:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.SqlServer.xml
+C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.dll
+C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.SqlServer.dll
+C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.xml
+C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\EntityFramework.SqlServer.xml
+C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\Newtonsoft.Json.dll
+C:\Projects\ScreenScraper\ScreenScraper\bin\Debug\Newtonsoft.Json.xml
+C:\Projects\ScreenScraper\ScreenScraper\obj\Debug\ScreenScraper.csprojResolveAssemblyReference.cache

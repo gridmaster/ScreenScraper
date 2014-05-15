@@ -1,0 +1,24 @@
+<query xmlns:yahoo="http://www.yahooapis.com/v1/base.rng" yahoo:count="215" yahoo:created="2014-04-26T20:23:45Z" yahoo:lang="en-US">
+<results>
+<company id="112" name="Ford">
+<model name="Mustang" symbol="Mus"/>
+<model name="Focus" symbol="Foc"/>
+<model name="F 150" symbol="F15"/>
+</company>
+<company id="132" name="Toyota">
+<model name="Sienna" symbol="Sie"/>
+<model name="Camary" symbol="Cam"/>
+<model name="Tacoma" symbol="Tac"/>
+</company>
+<company id="110" name="Dodge">
+<model name="Durango" symbol="Dur"/>
+<model name="Challanger" symbol="Cha"/>
+<model name="Ram" symbol="Ram"/>
+</company>
+<company id="131" name="Honda">
+<model name="Civic" symbol="Civ"/>
+<model name="Oddasy" symbol="Odd"/>
+<model name="Accord" symbol="Acc"/>
+</company>
+</results>
+</query>

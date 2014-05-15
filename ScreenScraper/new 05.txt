@@ -1,0 +1,4 @@
+[{"id":1,"name":"Sup dude?","industry":[{"id":12,"industryId":1,"name":"hoo-doo"},{"id":13,"industryId":2,"name":"voo-doo"}]}]
+
+{"sector":[{"id":1,"name":"Sup dude?","industry":[{"id":12,"industryId":1,"name":"hoo-doo"},{"id":13,"industryId":2,"name":"voo-doo"}]},
+           {"id":1,"name":"Sup dude?","industry":[{"id":12,"industryId":1,"name":"hoo-doo"},{"id":13,"industryId":2,"name":"voo-doo"}]}],"token":null}

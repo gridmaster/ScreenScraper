@@ -10,6 +10,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Newtonsoft.Json;
+using ScreenScraper.Models;
 
 namespace ScreenScraper
 {
@@ -23,16 +25,109 @@ namespace ScreenScraper
         readonly static string baseUri = "http://finance.yahoo.com";
         readonly static string summaryUri = "http://finance.yahoo.com/q?s={0}";
         readonly static string insiderUri = "http://finance.yahoo.com/q/it?s={0}+Insider+Transactions";
+        readonly static string sectorsUri = "http://tickersymbol.info/Sectors";
+        readonly static string industriesUri = "http://tickersymbol.info/Industries";
+        private static string BaseUri = @"http://localhost:45667"; // @"http://tickersymbol.info"; // 
+
         private static int totalCount = 0;
+
+        private class myData
+        {
+            public string sector { get; set; }
+            public int sectorId { get; set; }
+            public string industry { get; set; }
+            public int industryId { get; set; }
+            public string symbol { get; set; }
+            public string symbolId { get; set; }
+            public string symbolName { get; set; }
+            public bool HasSummary { get; set; }
+            public bool HasData { get; set; }
+            public bool HasOptions { get; set; }
+            public bool HasInsider { get; set; }
+            public bool HasAnalyst { get; set; }
+            public bool HasEstimates { get; set; }
+            public bool HasHolders { get; set; }
+            public bool HasKeyStats { get; set; }
+        }
+
 
         private static void Main(string[] args)
         {
             string sym = string.Empty;
             string webData = string.Empty;
+
+            string sectors = GetWebData(BaseUri + "/Sectors");
+
+            var secs = JsonConvert.DeserializeObject<Sectors>(sectors);
+
+            string industries = GetWebData(BaseUri + "/Industries").Replace("&amp;", "&");
+
+            Industries indtries = JsonConvert.DeserializeObject<Industries>(industries);
+
             string result = GetSymbolList();
             
             DataSet ds = DeSerializationToDataSet(result);
+
+            DataTable industryTable = ds.Tables["industry"];
+
+            Dictionary<string, string> dic = new Dictionary<string, string>();
+
+            foreach (DataRow item in industryTable.Rows)
+            {
+                dic.Add(item["industry_id"].ToString(), item["name"].ToString().Replace("&amp;", "&"));
+            }
+            
             DataTable companyTable = ds.Tables["company"];
+            Dictionary<string, string> bigdic = new Dictionary<string, string>();
+            string actualValue;
+            int dups = 1;
+            foreach (DataRow item in companyTable.Rows)
+            {
+                string key = dic[item["industry_id"].ToString()] + ":" + item["symbol"].ToString();
+                string value = item["name"].ToString();
+                if (bigdic.TryGetValue(key, out actualValue))
+                {
+                    WriteLog(string.Format("{0} item # {1} - Duplicate Key found: {2} - value: {3}", dups, bigdic.Count, key, value));
+                    dups++;
+                }
+                else
+                {
+                    bigdic.Add(key, value);
+                }
+            }
+
+            myData md = new myData();
+            dups = 1;
+            foreach (var ball in bigdic)
+            {
+                var keys = ball.Key.Split(':');
+                var value = ball.Value;
+
+                Industry ind = indtries.FirstOrDefault(i => i.Name == keys[0]);
+
+                if (ind == null )
+                    continue;
+
+                Sector sc = secs.FirstOrDefault(i => i.Id == ind.SectorId);
+
+                md.sectorId = sc.Id;
+                md.sector = sc.Name;
+                md.industry = keys[0];
+                md.industryId = ind.Id;
+                md.symbol = keys[1];
+                md.symbolName = value;
+                dups++;
+            }
+
+            dups = 1;
+
+            foreach (var dix in bigdic)
+            {
+                WriteLog(string.Format("item: {0} key = {1} value = {2}", dups++, dix.Key, dix.Value));
+                if (dups > 10) break;
+            }
+
+
 
             DataView dv = new DataView(companyTable);
             dv.Sort = "symbol asc";
@@ -50,6 +145,26 @@ namespace ScreenScraper
             Console.WriteLine("Done");
 
             Console.ReadKey();
+        }
+
+        public static string GetWebData(string uri)
+        {
+            string webData = string.Empty;
+
+            try
+            {
+                using (WebClient client = new WebClient())
+                {
+                    webData = client.DownloadString(uri);
+                    webData = Regex.Replace(webData, @"[^\u0000-\u007F]", string.Empty).Replace("&", "&amp;");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog(string.Format("Error reading XML. Error: {0}", ex.Message));
+            }
+
+            return webData;
         }
 
         public static void GetInsider(DataTable companyTable)
@@ -223,7 +338,7 @@ namespace ScreenScraper
                 webData = GetSummary(sym);
                 if (string.IsNullOrEmpty(webData)) continue;
 
-                webData = GetOpionsPage(sym, string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
+                webData = GetOptionsPage(sym, string.Format("http://finance.yahoo.com/q/op?s={0}+Options", sym));
 
                 if (string.IsNullOrEmpty(webData)) continue;
                 
@@ -236,7 +351,7 @@ namespace ScreenScraper
                                       GetMonth(item.Key.Substring(0, 3));
                     using (StreamWriter sw = new StreamWriter(directoryPath + fileName + ".htm"))
                     {
-                        webData = GetOpionsPage(fileName.Replace("/",""), item.Value);
+                        webData = GetOptionsPage(fileName.Replace("/",""), item.Value);
                         if (string.IsNullOrEmpty(webData)) continue;
 
                         sw.Write(webData);
@@ -339,7 +454,7 @@ namespace ScreenScraper
             return mydic;
         }
 
-        private static string GetOpionsPage(string sym, string url)
+        private static string GetOptionsPage(string sym, string url)
         {
             int iNdx = 0;
             string webData = string.Empty;
@@ -389,7 +504,7 @@ namespace ScreenScraper
 
         private static void WriteLog(string message)
         {
-            using (StreamWriter log = File.AppendText(directoryPath + "/log.txt"))
+            using (StreamWriter log = File.AppendText("log.txt")) //directoryPath + "/log.txt"))
             {
                 log.Write(DateTime.Now.ToString() + ": " + message + "\r\n");
                 log.Flush();
