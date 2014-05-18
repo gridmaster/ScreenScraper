@@ -43,6 +43,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
@@ -52,6 +53,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BulkLoad\BaseBulkLoad.cs" />
+    <Compile Include="BulkLoad\BulkLoadSymbols.cs" />
     <Compile Include="HtmlWorks.cs" />
     <Compile Include="IndustryView.cs" />
     <Compile Include="InsiderTransaction.cs" />
@@ -59,6 +62,8 @@
     <Compile Include="Models\Industries.cs" />
     <Compile Include="Models\Industry.cs" />
     <Compile Include="Models\Sectors.cs" />
+    <Compile Include="Models\SymbolDetail.cs" />
+    <Compile Include="Models\SymbolDetails.cs" />
     <Compile Include="Models\WCFSector.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -66,6 +71,7 @@
     <Compile Include="SharesTrans.cs" />
     <Compile Include="Models\Sector.cs" />
     <Compile Include="SymbolContext.cs" />
+    <Compile Include="Log.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

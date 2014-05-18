@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Newtonsoft.Json;
+using ScreenScraper.BulkLoad;
 using ScreenScraper.Models;
 
 namespace ScreenScraper
@@ -31,36 +32,23 @@ namespace ScreenScraper
 
         private static int totalCount = 0;
 
-        private class myData
-        {
-            public string sector { get; set; }
-            public int sectorId { get; set; }
-            public string industry { get; set; }
-            public int industryId { get; set; }
-            public string symbol { get; set; }
-            public string symbolId { get; set; }
-            public string symbolName { get; set; }
-            public bool HasSummary { get; set; }
-            public bool HasData { get; set; }
-            public bool HasOptions { get; set; }
-            public bool HasInsider { get; set; }
-            public bool HasAnalyst { get; set; }
-            public bool HasEstimates { get; set; }
-            public bool HasHolders { get; set; }
-            public bool HasKeyStats { get; set; }
-        }
-
-
         private static void Main(string[] args)
         {
+            Log.WriteLog("Starting at: " + DateTime.Now);
+
             string sym = string.Empty;
             string webData = string.Empty;
 
-            string sectors = GetWebData(BaseUri + "/Sectors");
+            System.Uri suri = new Uri(BaseUri + "/GetSectors");
 
+
+            // var sectors = RetrieveAsset(suri, out sym);
+
+            string sectors = GetWebData(BaseUri + "/GetSectors");
+            // string sectorResult = System.Text.Encoding.UTF8.GetString(sectors);
             var secs = JsonConvert.DeserializeObject<Sectors>(sectors);
 
-            string industries = GetWebData(BaseUri + "/Industries").Replace("&amp;", "&");
+            string industries = GetWebData(BaseUri + "/GetIndustries").Replace("&amp;", "&");
 
             Industries indtries = JsonConvert.DeserializeObject<Industries>(industries);
 
@@ -87,7 +75,7 @@ namespace ScreenScraper
                 string value = item["name"].ToString();
                 if (bigdic.TryGetValue(key, out actualValue))
                 {
-                    WriteLog(string.Format("{0} item # {1} - Duplicate Key found: {2} - value: {3}", dups, bigdic.Count, key, value));
+                    Log.WriteLog(string.Format("{0} item # {1} - Duplicate Key found: {2} - value: {3}", dups, bigdic.Count, key, value));
                     dups++;
                 }
                 else
@@ -96,10 +84,13 @@ namespace ScreenScraper
                 }
             }
 
-            myData md = new myData();
+            SymbolDetails sdList = new SymbolDetails();
             dups = 1;
+            
             foreach (var ball in bigdic)
             {
+                SymbolDetail sd = new SymbolDetail();
+
                 var keys = ball.Key.Split(':');
                 var value = ball.Value;
 
@@ -110,41 +101,215 @@ namespace ScreenScraper
 
                 Sector sc = secs.FirstOrDefault(i => i.Id == ind.SectorId);
 
-                md.sectorId = sc.Id;
-                md.sector = sc.Name;
-                md.industry = keys[0];
-                md.industryId = ind.Id;
-                md.symbol = keys[1];
-                md.symbolName = value;
+                sd.SectorId = sc.Id;
+                sd.Sector = sc.Name;
+                sd.Industry = keys[0];
+                sd.IndustryId = ind.Id;
+                sd.Symbol = keys[1];
+                sd.Name = value;
+                sd.Date = new DateTime(2014, 5, 16);
+                sdList.Add(sd);
                 dups++;
             }
 
             dups = 1;
 
-            foreach (var dix in bigdic)
+            SymbolDetails bulkSymbols = new SymbolDetails();
+            
+            foreach (SymbolDetail symbolDetail in sdList)
             {
-                WriteLog(string.Format("item: {0} key = {1} value = {2}", dups++, dix.Key, dix.Value));
-                if (dups > 10) break;
+                SymbolDetail mf = GetActiveLinks(symbolDetail);
+                bulkSymbols.Add(mf);
             }
 
+            Log.WriteLog(string.Format("Load Bulk at: " + DateTime.Now));
 
+            BulkLoadSymbols bls = new BulkLoadSymbols();
 
-            DataView dv = new DataView(companyTable);
-            dv.Sort = "symbol asc";
+            var dt = bls.ConfigureDataTable();
 
-            DataTable sortedTable = dv.ToTable();
+            dt = bls.LoadDataTableWithIndustries(bulkSymbols, dt);
 
-            WriteLog("Starting at: " + DateTime.Now);
+            bls.BulkCopy<SymbolDetails>(dt);
 
-            GetInsider(companyTable);
+            //SymbolDetails bullSymbols = new SymbolDetails();
+
+            //foreach (var symbolDetail in bulkSymbols)
+            //{
+            //    SymbolDetail bfd = symbolDetail;
+            //    bfd.Date = DateTime.Now;
+            //    bullSymbols.Add(bfd);
+            //}
+
+            //BulkLoadSymbols blx = new BulkLoadSymbols();
+
+            //var dxt = blx.ConfigureDataTable();
+
+            //dxt = blx.LoadDataTableWithIndustries(bullSymbols, dxt);
+
+            //blx.BulkCopy<SymbolDetails>(dxt);
+
+            //DataView dv = new DataView(companyTable);
+            //dv.Sort = "symbol asc";
+
+            //DataTable sortedTable = dv.ToTable();
+
+            // GetInsider(companyTable);
 
             //GetOptions(companyTable);
             
-            WriteLog(string.Format("Ending at: " + DateTime.Now));
+            Log.WriteLog(string.Format("Ending at: " + DateTime.Now));
 
             Console.WriteLine("Done");
 
             Console.ReadKey();
+        }
+
+        public static SymbolDetail GetActiveLinks(SymbolDetail sd)
+        {
+            int iNdx = 0;
+            string webData = string.Empty;
+            SymbolDetail newSymbolDetail = sd; // new SymbolDetail();
+
+            using (WebClient wc = new WebClient())
+            {
+                iNdx++;
+                try
+                {
+                    webData = string.Empty;
+                    webData = wc.DownloadString(string.Format(summaryUri, sd.Symbol));
+
+                    string compairString = webData.ToUpper();
+
+                    if (webData.IndexOf("There are no results for the given search term", System.StringComparison.Ordinal) > -1)
+                    {
+                        return newSymbolDetail;
+                    }
+
+                    int symLen = sd.Symbol.IndexOf(".", System.StringComparison.Ordinal) > -1 ? sd.Symbol.IndexOf(".", System.StringComparison.Ordinal) : sd.Symbol.Length;
+                    string matchThis = string.Format("NO SUCH TICKER SYMBOL: <STRONG>{0}</STRONG>", sd.Symbol.Substring(0, symLen)).ToUpper();
+                    if (compairString.IndexOf(matchThis, System.StringComparison.Ordinal) > -1)
+                    {
+                        return newSymbolDetail;
+                    }
+
+                    if (compairString.IndexOf(string.Format("Get Quotes Results for {0}", sd.Symbol).ToUpper(), System.StringComparison.Ordinal) > -1)
+                    {
+                        return newSymbolDetail;
+                    }
+
+                    sd.HasSummary = true;
+                    
+                    // <span class="rtq_exch"><span class="rtq_dash">-</span>HKSE  </span>
+                    if ((webData.IndexOf("rtq_exch", System.StringComparison.Ordinal) > -1))
+                    {
+                        string span = webData.Substring(webData.IndexOf("rtq_exch", System.StringComparison.Ordinal));
+                        span = span.Substring(span.IndexOf("</span>", System.StringComparison.Ordinal) + "</span>".Length);
+                        span = span.Substring(0, span.IndexOf("</span>", System.StringComparison.Ordinal));
+                        newSymbolDetail.ExchangeName = span.Trim();
+                    }
+
+                    if (webData.IndexOf("+Options\">Options</a>", System.StringComparison.Ordinal) < 0)
+                    {
+                        Log.WriteLog(string.Format("Symbol {0} has no Options...", sd.Name));
+                    }
+                    else
+                    {
+                        sd.HasOptions = true;
+                    }
+                    if (webData.IndexOf("+Historical+Prices\">Historical Prices</a>", System.StringComparison.Ordinal) < 0)
+                    {
+                        Log.WriteLog(string.Format("Symbol {0} has no Historical Prices...", sd.Name));
+                    }
+                    else
+                    {
+                        sd.HasData = true;
+                    }
+                    if (webData.IndexOf("Key+Statistics\">Key Statistics</a>", System.StringComparison.Ordinal) < 0)
+                    {
+                        Log.WriteLog(string.Format("Symbol {0} has no Key Statistics...", sd.Name));
+                    }
+                    else
+                    {
+                        sd.HasKeyStats = true;
+                    }
+                    if (webData.IndexOf("Analyst+Opinion\">Analyst Opinion</a>", System.StringComparison.Ordinal) < 0)
+                    {
+                        Log.WriteLog(string.Format("Symbol {0} has no Analyst Opinion...", sd.Name));
+                    }
+                    else
+                    {
+                        sd.HasAnalyst = true;
+                    }
+                    if (webData.IndexOf("Analyst+Estimates\">Analyst Estimates</a>", System.StringComparison.Ordinal) < 0)
+                    {
+                        Log.WriteLog(string.Format("Symbol {0} has no Analyst Estimates...", sd.Name));
+                    }
+                    else
+                    {
+                        sd.HasEstimates = true;
+                    }
+                    if (webData.IndexOf("Insider+Transactions\">Insider Transactions</a>", System.StringComparison.Ordinal) < 0)
+                    {
+                        Log.WriteLog(string.Format("Symbol {0} has no Major Holders...", sd.Name));
+                    }
+                    else
+                    {
+                        sd.HasHolders = true;
+                    }
+
+                    if (webData.IndexOf("Insider+Transactions\">Insider Transactions</a>", System.StringComparison.Ordinal) < 0)
+                    {
+                        Log.WriteLog(string.Format("Symbol {0} has no Insider Transactions...", sd.Name));
+                    }
+                    else
+                    {
+                        sd.HasInsider = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLog(string.Format("Error for Symbol {0}. Error: {1}", sd.Name, ex.Message));
+                }
+            }
+            
+            return newSymbolDetail;
+        }
+
+        private static Byte[] RetrieveAsset(Uri uri, out string contentType)
+        {
+            try
+            {
+                Byte[] bytes;
+                HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(uri);
+                webRequest.KeepAlive = true;
+                webRequest.ProtocolVersion = HttpVersion.Version10;
+                webRequest.ServicePoint.ConnectionLimit = 24;
+               // webRequest.Headers.Add("UserAgent", "Pentia; MSI");
+                using (WebResponse webResponse = webRequest.GetResponse())
+                {
+                    contentType = webResponse.ContentType;
+                    using (Stream stream = webResponse.GetResponseStream())
+                    {
+                        using (MemoryStream memoryStream = new MemoryStream())
+                        {
+                            // Stream the response to a MemoryStream via the byte array buffer
+                            Byte[] buffer = new Byte[0x1000];
+                            Int32 bytesRead;
+                            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                            {
+                                memoryStream.Write(buffer, 0, bytesRead);
+                            }
+                            bytes = memoryStream.ToArray();
+                        }
+                    }
+                }
+                return bytes;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to retrieve asset from '" + uri + "': " + ex.Message, ex);
+            }
         }
 
         public static string GetWebData(string uri)
@@ -161,7 +326,7 @@ namespace ScreenScraper
             }
             catch (Exception ex)
             {
-                WriteLog(string.Format("Error reading XML. Error: {0}", ex.Message));
+                Log.WriteLog(string.Format("Error reading XML. Error: {0}", ex.Message));
             }
 
             return webData;
@@ -246,7 +411,7 @@ namespace ScreenScraper
                 //    sw.Write(webData);
                 //    sw.Flush();
                 //    sw.Close();
-                //    WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
+                //    WriteLog.WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
                 //}
             }
         }
@@ -295,7 +460,7 @@ namespace ScreenScraper
                 }
                 catch (Exception ex)
                 {
-                    WriteLog(string.Format("Error for Symbol {0} hit iNdx {1}. Error: {2}", sym, iNdx, ex.Message));
+                    Log.WriteLog(string.Format("Error for Symbol {0} hit iNdx {1}. Error: {2}", sym, iNdx, ex.Message));
                 }
             } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
                       string.IsNullOrEmpty(webData)) && iNdx < maxCount);
@@ -306,27 +471,26 @@ namespace ScreenScraper
                 webData.IndexOf("is no longer valid") > -1 ||
                 webData.IndexOf("The remote server returned an error: (999)") > -1)
             {
-                WriteLog(string.Format("No insider data for Symbol {0} hit iNdx {1}", sym, iNdx));
+                Log.WriteLog(string.Format("No insider data for Symbol {0} hit iNdx {1}", sym, iNdx));
                 webData = string.Empty;
             }
 
             if (string.IsNullOrEmpty(webData))
             {
-                WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
+                Log.WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
                 webData = string.Empty;
             }
 
-            WriteLog(string.Format("Symbol {0} returned insider data at iNdx {1}.", sym, iNdx));
+            Log.WriteLog(string.Format("Symbol {0} returned insider data at iNdx {1}.", sym, iNdx));
 
             return webData;
         }
         
         public static void GetOptions(DataTable companyTable)
         {
-            
             Directory.CreateDirectory(directoryPath);
             
-            WriteLog("Starting at: " + DateTime.Now);
+            Log.WriteLog("Starting at: " + DateTime.Now);
             foreach (DataRow row in companyTable.Rows)
             {
                 string sym = row["symbol"].ToString();
@@ -357,7 +521,7 @@ namespace ScreenScraper
                         sw.Write(webData);
                         sw.Flush();
                         sw.Close();
-                        WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
+                        Log.WriteLog(string.Format("Count {0}: Symbol {1} and was saved to file.", totalCount, fileName.Substring(1)));
                     }
                 }
                 mydic.Clear();                
@@ -377,7 +541,7 @@ namespace ScreenScraper
 
                 if (webData.IndexOf("+Insider+Transactions\">Insider Transactions</a>") < 0)
                 {
-                    WriteLog(string.Format("Symbol {0} has no insider data...", sym));
+                    Log.WriteLog(string.Format("Symbol {0} has no insider data...", sym));
                     webData = "";
                 }
             }
@@ -385,7 +549,7 @@ namespace ScreenScraper
             {
                 iNdx++;
                 if (iNdx > maxCount)
-                    WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
+                    Log.WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
                 webData = "";
             }
             return webData;
@@ -404,7 +568,7 @@ namespace ScreenScraper
 
                 if (webData.IndexOf("+Options\">Options</a>") < 0)
                 {
-                    WriteLog(string.Format("Symbol {0} has no options...", sym));
+                    Log.WriteLog(string.Format("Symbol {0} has no options...", sym));
                     webData = "";
                 }
             }
@@ -412,7 +576,7 @@ namespace ScreenScraper
             {
                 iNdx++;
                 if (iNdx > maxCount)
-                    WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
+                    Log.WriteLog(string.Format("Symbol {0} blew up fetching summary page...", sym));
                 webData = "";
             }
             return webData;
@@ -470,7 +634,7 @@ namespace ScreenScraper
                 }
                 catch (Exception ex)
                 {
-                    WriteLog(string.Format("Error for Symbol {0} hit iNdx {1}. Error: {2}", sym, iNdx, ex.Message));
+                    Log.WriteLog(string.Format("Error for Symbol {0} hit iNdx {1}. Error: {2}", sym, iNdx, ex.Message));
                 }
             } while (((webData.IndexOf("The remote server returned an error: (999)") > -1) ||
                       string.IsNullOrEmpty(webData)) && iNdx < maxCount);
@@ -481,35 +645,25 @@ namespace ScreenScraper
                 webData.IndexOf("is no longer valid") > -1 ||
                 webData.IndexOf("The remote server returned an error: (999)") > -1)
             {
-                WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
+                Log.WriteLog(string.Format("No options data for Symbol {0} hit iNdx {1}", sym, iNdx));
                 webData = string.Empty;
             }
 
             if (string.IsNullOrEmpty(webData))
             {
-                WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
+                Log.WriteLog(string.Format("Empty string returned for Symbol {0} hit iNdx {1}", sym, iNdx));
                 webData = string.Empty;
             }
 
             if (webData.IndexOf("View By Expiration:", System.StringComparison.Ordinal) == -1)
             {
-                WriteLog(string.Format("Invalid data for Symbol {0} hit iNdx {1}", sym, iNdx));
+                Log.WriteLog(string.Format("Invalid data for Symbol {0} hit iNdx {1}", sym, iNdx));
                 webData = string.Empty;
             }
 
-            WriteLog(string.Format("Symbol {0} returned options data at iNdx {1}.", sym, iNdx));
+            Log.WriteLog(string.Format("Symbol {0} returned options data at iNdx {1}.", sym, iNdx));
 
             return webData;
-        }
-
-        private static void WriteLog(string message)
-        {
-            using (StreamWriter log = File.AppendText("log.txt")) //directoryPath + "/log.txt"))
-            {
-                log.Write(DateTime.Now.ToString() + ": " + message + "\r\n");
-                log.Flush();
-                log.Close();
-            }
         }
 
         public static string GetMonth(string month)
@@ -569,7 +723,7 @@ namespace ScreenScraper
             }
             catch (Exception ex)
             {
-                WriteLog(string.Format("Error reading XML. Error: {0}", ex.Message));
+                Log.WriteLog(string.Format("Error reading XML. Error: {0}", ex.Message));
             }
 
             return webData;
@@ -587,7 +741,7 @@ namespace ScreenScraper
             }
             catch (Exception ex)
             {
-                WriteLog(string.Format("Error desearializing XML. Error: {0}", ex.Message));
+                Log.WriteLog(string.Format("Error desearializing XML. Error: {0}", ex.Message));
             }
             return deSerializeDS;
         }
