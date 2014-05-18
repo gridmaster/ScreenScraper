@@ -177,8 +177,25 @@ namespace ScreenScraper
                 try
                 {
                     webData = string.Empty;
-                    webData = wc.DownloadString(string.Format(summaryUri, sd.Symbol));
 
+                    string error = string.Empty;
+                    do
+                    {
+                        error = string.Empty;
+                        try
+                        {
+                            webData = wc.DownloadString(string.Format(summaryUri, sd.Symbol));
+                        }
+                        catch (Exception ex)
+                        {
+                            if (ex.Message.IndexOf("The remote server returned an error: (502) Bad Gateway", System.StringComparison.Ordinal) > -1)
+                                error = ex.Message;
+                            else
+                                error = string.Empty;
+
+                            Log.WriteLog(string.Format("Error for Symbol {0}. Name {1} Error: {2}", sd.Symbol, sd.Name, ex.Message));
+                        }
+                    } while (!string.IsNullOrEmpty(error));
                     string compairString = webData.ToUpper();
 
                     if (webData.IndexOf("There are no results for the given search term", System.StringComparison.Ordinal) > -1)
@@ -211,7 +228,7 @@ namespace ScreenScraper
 
                     if (webData.IndexOf("+Options\">Options</a>", System.StringComparison.Ordinal) < 0)
                     {
-                        Log.WriteLog(string.Format("Symbol {0} has no Options...", sd.Name));
+                        Log.WriteLog(string.Format("Symbol {0} has no Options...", sd.Symbol));
                     }
                     else
                     {
@@ -219,7 +236,7 @@ namespace ScreenScraper
                     }
                     if (webData.IndexOf("+Historical+Prices\">Historical Prices</a>", System.StringComparison.Ordinal) < 0)
                     {
-                        Log.WriteLog(string.Format("Symbol {0} has no Historical Prices...", sd.Name));
+                        Log.WriteLog(string.Format("Symbol {0} has no Historical Prices...", sd.Symbol));
                     }
                     else
                     {
@@ -227,7 +244,7 @@ namespace ScreenScraper
                     }
                     if (webData.IndexOf("Key+Statistics\">Key Statistics</a>", System.StringComparison.Ordinal) < 0)
                     {
-                        Log.WriteLog(string.Format("Symbol {0} has no Key Statistics...", sd.Name));
+                        Log.WriteLog(string.Format("Symbol {0} has no Key Statistics...", sd.Symbol));
                     }
                     else
                     {
@@ -235,7 +252,7 @@ namespace ScreenScraper
                     }
                     if (webData.IndexOf("Analyst+Opinion\">Analyst Opinion</a>", System.StringComparison.Ordinal) < 0)
                     {
-                        Log.WriteLog(string.Format("Symbol {0} has no Analyst Opinion...", sd.Name));
+                        Log.WriteLog(string.Format("Symbol {0} has no Analyst Opinion...", sd.Symbol));
                     }
                     else
                     {
@@ -243,7 +260,7 @@ namespace ScreenScraper
                     }
                     if (webData.IndexOf("Analyst+Estimates\">Analyst Estimates</a>", System.StringComparison.Ordinal) < 0)
                     {
-                        Log.WriteLog(string.Format("Symbol {0} has no Analyst Estimates...", sd.Name));
+                        Log.WriteLog(string.Format("Symbol {0} has no Analyst Estimates...", sd.Symbol));
                     }
                     else
                     {
@@ -251,7 +268,7 @@ namespace ScreenScraper
                     }
                     if (webData.IndexOf("Insider+Transactions\">Insider Transactions</a>", System.StringComparison.Ordinal) < 0)
                     {
-                        Log.WriteLog(string.Format("Symbol {0} has no Major Holders...", sd.Name));
+                        Log.WriteLog(string.Format("Symbol {0} has no Major Holders...", sd.Symbol));
                     }
                     else
                     {
@@ -260,7 +277,7 @@ namespace ScreenScraper
 
                     if (webData.IndexOf("Insider+Transactions\">Insider Transactions</a>", System.StringComparison.Ordinal) < 0)
                     {
-                        Log.WriteLog(string.Format("Symbol {0} has no Insider Transactions...", sd.Name));
+                        Log.WriteLog(string.Format("Symbol {0} has no Insider Transactions...", sd.Symbol));
                     }
                     else
                     {
@@ -269,7 +286,7 @@ namespace ScreenScraper
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLog(string.Format("Error for Symbol {0}. Error: {1}", sd.Name, ex.Message));
+                    Log.WriteLog(string.Format("Error for Symbol {0}. Name {1} Error: {2}", sd.Symbol, sd.Name, ex.Message));
                 }
             }
             
